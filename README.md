@@ -1,5 +1,7 @@
 # toplu-entry-sildirgeci
-Toplu entry slimeye yarayan uygulama.
+Ekşi Sözlük için toplu entry silmeye yarayan uygulama.
+
+*Kanzuk'un beyin yakan yeni tasarımına uygun! (güncellendi)
 
 Cookie klasörüne yazma izni verdikten sonra uygulamayı indirdiğinz klasöre gelip şu komutu çalıştırmanız yeterlidir:
 
