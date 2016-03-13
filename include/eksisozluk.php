@@ -24,7 +24,6 @@ class Eksisozluk extends Curl {
         $header_array[] = 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8';
         $header_array[] = 'Accept-Language: tr-TR,tr;q=0.8,en-US;q=0.5,en;q=0.3';
         $header_array[] = 'Connection: keep-alive';
-        $header_array[] = 'Content-Type: text/html; charset=utf-8';
 
         $this->curl->setHeaderArray($header_array);
     }
@@ -75,14 +74,6 @@ class Eksisozluk extends Curl {
      */
     public function setSonEntryleri($son_entryleri)
     {
-        foreach($son_entryleri as $key=>$entry) {
-
-            $entry_id = str_replace("/entry/", "", $son_entryleri[$key]["href"]);
-            if(is_numeric($entry_id))
-            $son_entryleri[$key]["id"] = $entry_id;
-
-         }
-
         $this->son_entryleri = $son_entryleri;
     }
 
@@ -122,12 +113,11 @@ class Eksisozluk extends Curl {
 
         preg_match('/<a href="\/terk">terk<\/a>/i',$response,$giris);
 
-
         if($giris) {
             echo "\n login başarılı \n";
-        return true;
+            return true;
         } else {
-        return false;
+            return false;
         }
 
     }
@@ -141,7 +131,7 @@ class Eksisozluk extends Curl {
         $this->curl->setOutputHtml($this->curl->get("https://eksisozluk.com"));
         $is_logged_bool = $this->islogged($this->curl->getOutputHtml());
 
-        sleep(1);
+        sleep(2);
 
         if($is_logged_bool) {
             $this->setNick();
@@ -149,9 +139,9 @@ class Eksisozluk extends Curl {
             return true;
 
         } else {
-
+            echo "login olunuyor";
             $response = $this->curl->get("https://eksisozluk.com/giris?returnUrl=https%3A%2F%2Feksisozluk.com%2F");
-            sleep(1);
+            sleep(2);
 
             // error reporting 0 yapıyoruz çünkü domdocument saniyede 5.000 warning fırlatıyor.
             error_reporting(0);
@@ -170,8 +160,11 @@ class Eksisozluk extends Curl {
             $post_array['RememberMe'] = "true";
             $this->curl->setPost(http_build_query($post_array));
 
-            // print_r($this->curl->getPostArray());
-            $this->curl->setOutputHtml($this->curl->post("https://eksisozluk.com/giris"));
+            $header_array = array();
+            $header_array[] = 'Content-Length: '.strlen(http_build_query($post_array));
+            $this->curl->setHeaderArray($header_array);
+
+            $this->curl->setOutputHtml($this->curl->post("https://eksisozluk.com/giris",true));
             $is_logged_bool = $this->islogged($this->curl->getOutputHtml());
 
             if($is_logged_bool) {
@@ -183,7 +176,7 @@ class Eksisozluk extends Curl {
 
         echo "\n login başarısız kullanıcı adı ve şifrenizi kontrol ediniz \n";
         die;
-
+        return false;
 
     }
 
@@ -198,52 +191,54 @@ class Eksisozluk extends Curl {
     }
 
     public function son_entryleri(){
-        sleep(1);
-
-        $header_array[0] = 'Host: eksisozluk.com';
-        $header_array[] = 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8';
-        $header_array[] = 'Accept-Language: tr-TR,tr;q=0.8,en-US;q=0.5,en;q=0.3';
-        $header_array[] = 'Connection: keep-alive';
-        $header_array[] = 'Content-Type: text/html; charset=utf-8';
-        $this->curl->setHeaderArray($header_array);
-
+        sleep(rand(0,1));
         $url = "https://eksisozluk.com/basliklar/istatistik/".$this->nick."/son-entryleri";
-        $this->curl->setOutputHtml(mb_convert_encoding($this->curl->get($url), "UTF-8", "auto"));
-        $this->curl->setLinks($this->curl->getOutputHtml(),"xpath","/html/body/div[1]/div[2]/div/section/ul[@class='topic-list']");
+        $get_content = $this->curl->get($url);
+        $this->curl->setOutputHtml($get_content);
+        $this->curl->setLinks($this->curl->getOutputHtml(),"xpath",'//*[@id="content-body"]/ul');
         $this->setSonEntryleri($this->curl->getLinks());
         return $this->curl->getOutputHtml();
     }
 
     public function sil($entry_id) {
+        $confirmation = false;
+        while($confirmation == false) {
+            $entry_id = str_replace("/entry/", "", $entry_id);
+            if (!is_numeric($entry_id)) {
+                echo "\n hatalı entry numarası $entry_id \n";
+                return false;
+            }
 
-        if(!is_numeric($entry_id)) {
-            echo "\n sıçızladı. hatalı entry numarası : ' $entry_id ' \n";
-            die;
-            return false;
+            $url = "https://eksisozluk.com/entry/" . $entry_id;
+            $this->curl->get($url);
+
+            sleep(rand(0, 1));
+
+            $post_array['id'] = $entry_id;
+            $this->curl->setPost(http_build_query($post_array));
+
+            $header_array = array();
+            $header_array[] = 'Host: eksisozluk.com';
+            $header_array[] = 'Accept-Language: tr-TR,tr;q=0.8,en-US;q=0.5,en;q=0.3';
+            $header_array[] = 'Connection: keep-alive';
+            $header_array[] = 'Cache-Control: no-cache';
+            //   $header_array[] = 'Content-Type: application/x-www-form-urlencoded; charset=UTF-8';
+            $header_array[] = 'Pragma: no-cache';
+            $header_array[] = 'Referer: https://eksisozluk.com/entry/' . $entry_id;
+            $header_array[] = 'X-Requested-With: XMLHttpRequest';
+            $header_array[] = 'Content-Length: ' . strlen("id=" . $entry_id);
+
+            $this->curl->setHeaderArray($header_array);
+
+            $return = $this->curl->post('https://eksisozluk.com/entry/sil');
+            if(is_numeric(strpos($return,"HTTP/1.1 200 OK"))) {
+            $confirmation = true;
+            echo "\n $entry_id silindi gibi... 15 sn içinde sıradaki entry silinecek\n";
+            } else {
+            echo "\n $entry_id silinemedi... 15 sn içinde tekrar denenecek \n";
+            sleep(15);
+            }
         }
-
-      //  $url = "https://eksisozluk.com/entry/".$entry_id;
-      //  $this->curl->get($url);
-
-
-
-        $post_array['id'] = $entry_id;
-        $this->curl->setPost(http_build_query($post_array));
-
-        $header_array = array();
-        $header_array[] = 'Host: eksisozluk.com';
-        $header_array[] = 'Accept-Language: tr-TR,tr;q=0.8,en-US;q=0.5,en;q=0.3';
-        $header_array[] = 'Connection: keep-alive';
-        $header_array[] = 'Cache-Control: no-cache';
-        $header_array[] = 'Pragma: no-cache';
-        $header_array[] = 'Referer: https://eksisozluk.com/entry/'.$entry_id;
-        $header_array[] = 'X-Requested-With: XMLHttpRequest';
-
-        $this->curl->setHeaderArray($header_array);
-
-        $this->curl->post('https://eksisozluk.com/entry/sil');
-        echo "\n $entry_id silindi gibi \n";
-
         return true;
     }
 
